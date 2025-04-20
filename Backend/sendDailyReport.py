@@ -11,7 +11,7 @@ today_str = NOW.strftime("%d %B, %Y")
 
 # Initialize Firebase Admin SDK with your service account key.
 cred = credentials.Certificate(
-    r"D:\Code\ProdDailyReport\Backend\prodadminapp-firebase-adminsdk-fbsvc-0818e060d9.json"
+    r"D:\Code\ProdDailyReport\Backend\prodadminapp-firebase-adminsdk-fbsvc-9a70300d08.json"
 )
 firebase_admin.initialize_app(cred)
 db = firestore.client()

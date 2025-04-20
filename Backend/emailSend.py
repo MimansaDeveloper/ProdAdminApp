@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 # ---------- Configuration ----------
-FIREBASE_CREDENTIALS_PATH = r"D:\Code\ProdDailyReport\Backend\prodadminapp-firebase-adminsdk-fbsvc-0818e060d9.json"  # Update path
+FIREBASE_CREDENTIALS_PATH = r"D:\Code\ProdDailyReport\Backend/prodadminapp-firebase-adminsdk-fbsvc-9a70300d08.json"  # Update path
 ADMIN_EMAILS           = ["deepak@mimansaplay.com"]       # Where to send the status report
 CC_EMAILS              = []                                   # Optional CC
 SMTP_SERVER            = "smtp.gmail.com"
