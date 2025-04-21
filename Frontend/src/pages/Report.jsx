@@ -9,13 +9,13 @@ import { useNavigate } from 'react-router-dom';
  */
 function convertTo24HourFormat(timeStr) {
   if (!timeStr) return "";
-  const [time, modifier] = timeStr.split(" ");
+  const [time, modifier] = timeStr.split(' ');
   if (!modifier) return timeStr;
-  let [hours, minutes] = time.split(":");
+  let [hours, minutes] = time.split(':');
   hours = parseInt(hours, 10);
-  if (modifier.toUpperCase() === "PM" && hours !== 12) hours += 12;
-  if (modifier.toUpperCase() === "AM" && hours === 12) hours = 0;
-  return `${String(hours).padStart(2, "0")} :${minutes}`.replace(' ', '');
+  if (modifier.toUpperCase() === 'PM' && hours !== 12) hours += 12;
+  if (modifier.toUpperCase() === 'AM' && hours === 12) hours = 0;
+  return `${String(hours).padStart(2, '0')}:${minutes}`;
 }
 
 const Report = () => {
@@ -33,7 +33,9 @@ const Report = () => {
     sleepFrom: '',
     sleepTo: '',
     sleepNot: false,
+    noDiaper: false,
     diaperChanges: '',
+    toiletVisits: '',
     poops: '',
     feelings: [],
     notes: '',
@@ -102,7 +104,6 @@ const Report = () => {
   // When a report is clicked, load into form
   const handleReportSelect = report => {
     setSelectedReport(report);
-    // Use 'emails' array if present, otherwise fall back to email and email2 fields
     let emailsArr = [];
     if (Array.isArray(report.emails) && report.emails.length) {
       emailsArr = report.emails;
@@ -120,7 +121,9 @@ const Report = () => {
       sleepFrom: convertTo24HourFormat(report.sleepFrom),
       sleepTo: convertTo24HourFormat(report.sleepTo),
       sleepNot: report.sleepNot || false,
+      noDiaper: report.noDiaper || false,
       diaperChanges: report.diaperChanges || '',
+      toiletVisits: report.toiletVisits || '',
       poops: report.poops || '',
       feelings: Array.isArray(report.feelings)
         ? report.feelings
@@ -156,15 +159,16 @@ const Report = () => {
       );
     } else if (type === 'checkbox' && name === 'ouch') {
       setFormData(prev => ({ ...prev, ouch: checked, ouchReport: checked ? prev.ouchReport : '' }));
+    } else if (type === 'checkbox' && name === 'noDiaper') {
+      setFormData(prev => ({
+        ...prev,
+        noDiaper: checked,
+        diaperChanges: checked ? '' : prev.diaperChanges,
+        toiletVisits: checked ? prev.toiletVisits : ''
+      }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
-  };
-
-  // Radio and text fields
-  const handleRadioChange = e => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   // Update Firestore
@@ -180,7 +184,9 @@ const Report = () => {
         sleepFrom: formData.sleepFrom,
         sleepTo: formData.sleepTo,
         sleepNot: formData.sleepNot,
+        noDiaper: formData.noDiaper,
         diaperChanges: formData.diaperChanges,
+        toiletVisits: formData.toiletVisits,
         poops: formData.poops,
         feelings: formData.feelings,
         notes: formData.notes,
@@ -207,7 +213,7 @@ const Report = () => {
     reportBox: { width: '150px', height: '150px', backgroundColor: '#fffbee', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', cursor: 'pointer', textAlign: 'center' },
     formContainer: { backgroundColor: '#fffbee', padding: '30px', borderRadius: '15px', boxShadow: '0 8px 16px rgba(0,0,0,0.1)', maxWidth: '700px', margin: '0 auto' },
     label: { fontWeight: '600', marginBottom: '5px', display: 'block' },
-    input: { width: '95%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' },
+    input: { width: '95%', padding: '12px',	marginBottom: '15px', borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' },
     inputTime: { width: '90%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' },
     radioGroup: { display: 'flex', gap: '10px', marginBottom: '15px' },
     inlineContainer: { display: 'flex', gap: '30px', marginBottom: '15px' },
@@ -221,10 +227,10 @@ const Report = () => {
       {!selectedReport ? (
         <>
           <div style={styles.datePickerContainer}>
-            <label htmlFor="report-date" style={{ fontWeight: 'bold', marginRight: '10px' }}>Select Date:</label>
+            <label htmlFor='report-date' style={{ fontWeight: 'bold', marginRight: '10px' }}>Select Date:</label>
             <input
-              type="date"
-              id="report-date"
+              type='date'
+              id='report-date'
               style={styles.datePicker}
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
@@ -248,22 +254,20 @@ const Report = () => {
               })}
             </div>
           )}
-          <div style={{ textAlign: 'center', marginTop: '30px' }}>
-            <button style={styles.backButton} onClick={() => navigate('/')}>Back to Home</button>
-          </div>
+          <button style={styles.backButton} onClick={() => navigate('/')}>Back to Home</button>
         </>
       ) : (
         <form style={styles.formContainer} onSubmit={handleUpdate}>
           <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#4e342e' }}>Update Daily Report</h2>
 
           <label style={styles.label}>Child's Name</label>
-          <input type="text" name="childName" style={{ ...styles.input, backgroundColor: '#e9ecef' }} value={formData.childName} readOnly />
+          <input type='text' name='childName' style={{ ...styles.input, backgroundColor: '#e9ecef' }} value={formData.childName} readOnly />
 
           {formData.emails.length > 0 && (
-            <>
+            <>  
               <label style={styles.label}>Email{formData.emails.length > 1 ? 's' : ''}</label>
-              {formData.emails.map((em, i) => (
-                <input key={i} type="text" readOnly value={em} style={{ ...styles.input, backgroundColor: '#e9ecef' }} />
+              {formData.emails.map((em,i) => (
+                <input key={i} type='text' readOnly value={em} style={{ ...styles.input, backgroundColor: '#e9ecef' }} />
               ))}
             </>
           )}
@@ -273,11 +277,11 @@ const Report = () => {
           <div style={styles.inlineContainer}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '14px', fontWeight: '500' }}>In</label>
-              <input type="time" name="inTime" style={styles.inputTime} required value={formData.inTime} onChange={handleChange} />
+              <input type='time' name='inTime' style={styles.inputTime} required value={formData.inTime} onChange={handleChange} />
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '14px', fontWeight: '500' }}>Out</label>
-              <input type="time" name="outTime" style={styles.inputTime} required value={formData.outTime} onChange={handleChange} />
+              <input type='time' name='outTime' style={styles.inputTime} required value={formData.outTime} onChange={handleChange} />
             </div>
           </div>
 
@@ -286,7 +290,7 @@ const Report = () => {
           <div style={styles.radioGroup}>
             {['All','Some','None'].map(opt => (
               <label key={opt} style={{ fontWeight: '500' }}>
-                <input type="radio" name="snack" value={opt} onChange={handleRadioChange} checked={formData.snack===opt} required /> {opt}
+                <input type='radio' name='snack' value={opt} onChange={handleChange} checked={formData.snack===opt} required /> {opt}
               </label>
             ))}
           </div>
@@ -294,7 +298,7 @@ const Report = () => {
           <div style={styles.radioGroup}>
             {['All','Some','None'].map(opt => (
               <label key={opt} style={{ fontWeight: '500' }}>
-                <input type="radio" name="meal" value={opt} onChange={handleRadioChange} checked={formData.meal===opt} required /> {opt}
+                <input type='radio' name='meal' value={opt} onChange={handleChange} checked={formData.meal===opt} required /> {opt}
               </label>
             ))}
           </div>
@@ -303,34 +307,58 @@ const Report = () => {
           <label style={styles.label}>Child Slept</label>
           <div style={{ marginBottom: '15px' }}>
             <label style={{ fontWeight: '500' }}>
-              <input type="checkbox" name="sleepNot" checked={formData.sleepNot} onChange={handleChange} /> Child did not sleep in school
+              <input type='checkbox' name='sleepNot' checked={formData.sleepNot} onChange={handleChange} /> Child did not sleep in school
             </label>
           </div>
           <div style={styles.inlineContainer}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '14px', fontWeight: '500' }}>From</label>
-              <input type="time" name="sleepFrom" style={styles.inputTime} value={formData.sleepFrom} onChange={handleChange} disabled={formData.sleepNot} required={!formData.sleepNot} />
+              <input type='time' name='sleepFrom' style={styles.inputTime} value={formData.sleepFrom} onChange={handleChange} disabled={formData.sleepNot} required={!formData.sleepNot} />
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '14px', fontWeight: '500' }}>To</label>
-              <input type="time" name="sleepTo" style={styles.inputTime} value={formData.sleepTo} onChange={handleChange} disabled={formData.sleepNot} required={!formData.sleepNot} />
+              <input type='time' name='sleepTo' style={styles.inputTime} value={formData.sleepTo} onChange={handleChange} disabled={formData.sleepNot} required={!formData.sleepNot} />
             </div>
           </div>
 
-          {/* Diaper & Poops */}
-          <label style={styles.label}>Diaper Changes</label>
-          <div style={styles.radioGroup}>
-            {radioOptions.map(opt => (
-              <label key={opt} style={{ fontWeight: '500' }}>
-                <input type="radio" name="diaperChanges" value={String(opt)} onChange={handleRadioChange} checked={formData.diaperChanges===String(opt)} required /> {opt}
-              </label>
-            ))}
+          {/* No Diaper */}
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ fontWeight: '600', display: 'flex', alignItems: 'center' }}>
+              <input type='checkbox' name='noDiaper' checked={formData.noDiaper} onChange={handleChange} style={{ marginRight: '10px' }} /> No Diaper
+            </label>
           </div>
+
+          {/* Conditional Diaper vs Toilet Visits */}
+          {formData.noDiaper ? (
+            <>
+              <label style={styles.label}>Toilet Visits</label>
+              <div style={styles.radioGroup}>
+                {radioOptions.map(opt => (
+                  <label key={opt} style={{ fontWeight: '500' }}>
+                    <input type='radio' name='toiletVisits' value={String(opt)} onChange={handleChange} checked={formData.toiletVisits===String(opt)} required /> {opt}
+                  </label>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <label style={styles.label}>Diaper Changes</label>
+              <div style={styles.radioGroup}>
+                {radioOptions.map(opt => (
+                  <label key={opt} style={{ fontWeight: '500' }}>
+                    <input type='radio' name='diaperChanges' value={String(opt)} onChange={handleChange} checked={formData.diaperChanges===String(opt)} required /> {opt}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Bowel movements */}
           <label style={styles.label}>Bowel movements</label>
           <div style={styles.radioGroup}>
             {radioOptions.map(opt => (
               <label key={opt} style={{ fontWeight: '500' }}>
-                <input type="radio" name="poops" value={String(opt)} onChange={handleRadioChange} checked={formData.poops===String(opt)} required /> {opt}
+                <input type='radio' name='poops' value={String(opt)} onChange={handleChange} checked={formData.poops===String(opt)} required /> {opt}
               </label>
             ))}
           </div>
@@ -340,7 +368,7 @@ const Report = () => {
           <div style={{ marginBottom: '20px' }}>
             {feelingsOptions.map(opt => (
               <label key={opt.label} style={{ fontWeight: '500', marginRight: '20px' }}>
-                <input type="checkbox" name="feelings" value={opt.label} onChange={handleChange} checked={formData.feelings.includes(opt.label)} /> {opt.label} {opt.emoji}
+                <input type='checkbox' name='feelings' value={opt.label} onChange={handleChange} checked={formData.feelings.includes(opt.label)} /> {opt.label} {opt.emoji}
               </label>
             ))}
           </div>
@@ -348,19 +376,16 @@ const Report = () => {
           {/* Theme of the Day */}
           <label style={styles.label}>Theme of the Day</label>
           <div style={{ marginBottom: '20px' }}>
-            {availableThemes.length > 0
-              ? availableThemes.map(opt => (
-                  <label key={opt} style={{ fontWeight: '500', marginRight: '10px' }}>
-                    <input type="checkbox" name="themeOfTheDay" value={opt} onChange={handleChange} checked={formData.themeOfTheDay.includes(opt)} /> {opt}
-                  </label>
-                ))
-              : <p>No themes available</p>
-            }
+            {availableThemes.length > 0 ? availableThemes.map(opt => (
+              <label key={opt} style={{ fontWeight: '500', marginRight: '10px' }}>
+                <input type='checkbox' name='themeOfTheDay' value={opt} onChange={handleChange} checked={formData.themeOfTheDay.includes(opt)} /> {opt}
+              </label>
+            )) : <p>No themes available</p>}
           </div>
 
           {/* Notes */}
           <label style={styles.label}>Teacher's Note</label>
-          <textarea name="notes" rows="3" style={styles.input} value={formData.notes} onChange={handleChange} />
+          <textarea name='notes' rows='3' style={styles.input} value={formData.notes} onChange={handleChange} />
 
           {/* Ouch Report */}
           <div style={{ marginBottom: '15px' }}>

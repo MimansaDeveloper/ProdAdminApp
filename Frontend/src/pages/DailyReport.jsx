@@ -1,4 +1,3 @@
-// src/pages/DailyReport.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -20,7 +19,7 @@ const DailyReport = () => {
   const searchParams = new URLSearchParams(location.search);
   const childFromParam = searchParams.get('child') || '';
 
-  // Form state (now includes email2)
+  // Form state (now includes email2, noDiaper, toiletVisits)
   const [formData, setFormData] = useState({
     childName: childFromParam,
     inTime: '',
@@ -30,7 +29,9 @@ const DailyReport = () => {
     sleepFrom: '',
     sleepTo: '',
     sleepNot: false,
+    noDiaper: false,
     diaperChanges: '',
+    toiletVisits: '',
     poops: '',
     feelings: [],
     notes: '',
@@ -102,7 +103,7 @@ const DailyReport = () => {
     const loadKids = async () => {
       try {
         const snap = await getDocs(collection(db, 'kidsInfo'));
-        setKidsInfo(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setKidsInfo(snap.docs.map(d => ({ id: d.id, ...d.data() })));  
       } catch (err) {
         console.error(err);
       }
@@ -189,6 +190,14 @@ const DailyReport = () => {
         ouchReport: checked ? f.ouchReport : ''
       }));
     }
+    else if (type==='checkbox' && name==='noDiaper') {
+      setFormData(f => ({
+        ...f,
+        noDiaper: checked,
+        diaperChanges: checked ? '' : f.diaperChanges,
+        toiletVisits: checked ? f.toiletVisits : ''
+      }));
+    }
     else {
       setFormData(f => ({ ...f, [name]: value }));
     }
@@ -243,7 +252,9 @@ const DailyReport = () => {
         sleepFrom: '',
         sleepTo: '',
         sleepNot: false,
+        noDiaper: false,
         diaperChanges: '',
+        toiletVisits: '',
         poops: '',
         feelings: [],
         notes: '',
@@ -261,7 +272,7 @@ const DailyReport = () => {
     }
   };
 
-  // Styles
+  // Styles...
   const containerStyle = {
     background: 'linear-gradient(135deg, #ffecd2, #fcb69f)',
     minHeight: '100vh',
@@ -277,22 +288,10 @@ const DailyReport = () => {
     margin: '0 auto',
   };
   const labelStyle = { fontWeight: '600', marginBottom: '5px', display: 'block' };
-  const inputStyle = {
-    width: '100%', padding: '12px', marginBottom: '15px',
-    borderRadius: '8px', border: '1px solid #ffc107',
-    fontSize: '15px', outline: 'none'
-  };
-  const inputStyleTime = {
-    width: '84%', padding: '12px', marginBottom: '15px',
-    borderRadius: '8px', border: '1px solid #ffc107',
-    fontSize: '15px', outline: 'none'
-  };
+  const inputStyle = { width: '100%', padding: '12px', marginBottom: '15px',	borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' };
+  const inputStyleTime = { width: '84%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' };
   const textStyle = { ...inputStyle, width: '92%' };
-  const buttonStyle = {
-    width: '100%', background: '#fcb69f', color: '#4e342e',
-    fontWeight: '600', fontSize: '16px', padding: '15px',
-    border: 'none', borderRadius: '30px', cursor: 'pointer'
-  };
+  const buttonStyle = { width: '100%', background: '#fcb69f', color: '#4e342e', fontWeight: '600', fontSize: '16px', padding: '15px', border: 'none', borderRadius: '30px', cursor: 'pointer' };
   const rowStyle = { display: 'flex', gap: '30px', marginBottom: '15px' };
   const colStyle = { flex: 1, display: 'flex', flexDirection: 'column' };
 
@@ -449,22 +448,58 @@ const DailyReport = () => {
           </div>
         </div>
 
-        {/* Diaper & Poops */}
-        <label style={labelStyle}>Diaper Changes</label>
+
+        {/* No Diaper */}
         <div style={{ marginBottom:'15px' }}>
-          {radioOptions.map(opt => (
-            <label key={opt} style={{ marginRight:'20px', fontWeight:'500' }}>
-              <input
-                type="radio"
-                name="diaperChanges"
-                value={String(opt)}
-                checked={formData.diaperChanges===String(opt)}
-                onChange={handleChange}
-                required
-              /> {opt}
-            </label>
-          ))}
+          <label style={{ fontWeight:'600' }}>
+            <input
+              type="checkbox"
+              name="noDiaper"
+              checked={formData.noDiaper}
+              onChange={handleChange}
+              style={{ marginRight:'10px' }}
+            />
+            No Diaper
+          </label>
         </div>
+        {/* Conditional Diaper vs Toilet Visits */}
+        {formData.noDiaper ? (
+          <>
+            <label style={labelStyle}>Toilet Visits</label>
+            <div style={{ marginBottom:'15px' }}>
+              {radioOptions.map(opt => (
+                <label key={opt} style={{ marginRight:'20px', fontWeight:'500' }}>
+                  <input
+                    type="radio"
+                    name="toiletVisits"
+                    value={String(opt)}
+                    checked={formData.toiletVisits===String(opt)}
+                    onChange={handleChange}
+                    required
+                  /> {opt}
+                </label>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <label style={labelStyle}>Diaper Changes</label>
+            <div style={{ marginBottom:'15px' }}>
+              {radioOptions.map(opt => (
+                <label key={opt} style={{ marginRight:'20px', fontWeight:'500' }}>
+                  <input
+                    type="radio"
+                    name="diaperChanges"
+                    value={String(opt)}
+                    checked={formData.diaperChanges===String(opt)}
+                    onChange={handleChange}
+                    required
+                  /> {opt}
+                </label>
+              ))}
+            </div>
+          </>
+        )}
 
         <label style={labelStyle}>Bowel movements</label>
         <div style={{ marginBottom:'20px' }}>
