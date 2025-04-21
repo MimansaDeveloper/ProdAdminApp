@@ -11,7 +11,7 @@ today_str = NOW.strftime("%d %B, %Y")
 
 # Initialize Firebase Admin SDK with your service account key.
 cred = credentials.Certificate(
-    r"D:\Code\ProdAdminApp\Backend\prodadminapp-firebase-adminsdk-fbsvc-050eaa9bb6.json"
+    r""
 )
 firebase_admin.initialize_app(cred)
 db = firestore.client()
@@ -97,24 +97,40 @@ def fetch_all_kids_info():
     }
 
 def summarize_report(report, kids_info):
-    childName = report.get("childName", "N/A")
-    in_time = report.get("inTime", "N/A")
-    out_time = report.get("outTime", "N/A")
-    diaper = report.get("diaperChanges", "N/A")
-    pooped = report.get("poops", "N/A")
-    foodStatus = report.get("meal", "N/A").lower()
+    childName   = report.get("childName", "N/A")
+    in_time     = report.get("inTime",     "N/A")
+    out_time    = report.get("outTime",    "N/A")
+    pooped      = report.get("poops",      "N/A")
+    foodStatus  = report.get("meal",       "N/A").lower()
+
+    # Diaper vs Toilet
+    no_diaper   = report.get("noDiaper", False)
+    if no_diaper:
+        diaper_emoji = "🚽"
+        diaper_label = "Toilet visits (# times):"
+        diaper_count = report.get("toiletVisits", "N/A")
+    else:
+        diaper_emoji = "🧷"
+        diaper_label = "Diaper changes (# times):"
+        diaper_count = report.get("diaperChanges", "N/A")
+
+    # Feelings
+    feelings = report.get("feelings", [])
+    if isinstance(feelings, list) and feelings:
+        feelings_str = ", ".join(feelings)
+    else:
+        feelings_str = "N/A"
 
     # Sleep Info (include only if slept)
     sleep_info = ""
     if not report.get("sleepNot", False):
         sleep_from = report.get("sleepFrom", "")
-        sleep_to = report.get("sleepTo", "")
+        sleep_to   = report.get("sleepTo",   "")
         if sleep_from and sleep_to:
             sleep_info = f"<li><b>Sleep:</b> Slept from {sleep_from} to {sleep_to}.</li>"
 
-
     # Notes and Themes
-    teacher_note = report.get("notes", "N/A")
+    teacher_note = report.get("notes", "").strip() or "No additional notes."
     themes = report.get("themeOfTheDay", [])
     if isinstance(themes, list):
         if not themes:
@@ -126,48 +142,29 @@ def summarize_report(report, kids_info):
     else:
         theme_str = f"The theme covered today was {themes}."
 
-    # Optional fields
     ouch_report = report.get("ouchReport", "").strip()
     common_note = report.get("commonParentsNote", "").strip()
 
-    # Build base summary
     summary = f"""
     <div style="font-family: Arial, sans-serif; color: #333;">
-        
-        <p style="font-size: 16px; font-family: Arial, sans-serif;">
-        👋 Greetings from <b>Mimansa Kids,</b>
-        <img src="https://raw.githubusercontent.com/MimansaDeveloper/ProdAdminApp/main/Frontend/src/assets/Logo.png"
-            alt="Mimansa Kids Logo"
-            style="height: 24px; vertical-align: middle; margin-left: 5px;">
-
-        <p style="font-size: 15px;">
-            Here's a summary of your child <b>{childName}</b>'s day at our Eden Garden center for <b>{today_str}</b>.
+        <p style="font-size: 16px;">
+          👋 Greetings from <b>Mimansa Kids,</b>
+          <img src="https://raw.githubusercontent.com/MimansaDeveloper/ProdAdminApp/main/Frontend/src/assets/Logo.png"
+               alt="Mimansa Kids Logo"
+               style="height:24px;vertical-align:middle;margin-left:5px;">
         </p>
-
+        <p style="font-size: 15px;">
+          Here's a summary of your child <b>{childName}</b>'s day at our Eden Garden center for <b>{today_str}</b>.
+        </p>
         <table cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-size: 14px;">
-            <tr>
-                <td>🕘</td>
-                <td><b>Came in at:</b> {in_time}</td>
-            </tr>
-            <tr>
-                <td>🕔</td>
-                <td><b>Left at:</b> {out_time}</td>
-            </tr>
-            <tr>
-                <td>🧷</td>
-                <td><b>Diaper changed (# times):</b> {diaper}</td>
-            </tr>
-            <tr>
-                <td>💩</td>
-                <td><b>Bowel movements (# times):</b> {pooped}</td>
-            </tr>
-            <tr>
-                <td>🍱</td>
-                <td><b>Food:</b> Ate {foodStatus} food</td>
-            </tr>
+            <tr><td>🕘</td><td><b>Came in at:</b> {in_time}</td></tr>
+            <tr><td>🕔</td><td><b>Left at:</b> {out_time}</td></tr>
+            <tr><td>{diaper_emoji}</td><td><b>{diaper_label}</b> {diaper_count}</td></tr>
+            <tr><td>💩</td><td><b>Bowel movements (# times):</b> {pooped}</td></tr>
+            <tr><td>😊</td><td><b>Feelings:</b> {feelings_str}</td></tr>
+            <tr><td>🍱</td><td><b>Food:</b> Ate {foodStatus} food</td></tr>
             {f"<tr><td>🛏️</td><td><b>Sleep:</b> Slept from {sleep_from} to {sleep_to}</td></tr>" if sleep_info else ""}
         </table>
-
         <br>
         <p style="font-size: 15px;"><b>🎨 Theme of the Day:</b> {theme_str}</p>
         <p style="font-size: 15px;"><b>🧑‍🏫 Teacher's Note:</b> {teacher_note}</p>
@@ -187,11 +184,10 @@ def summarize_report(report, kids_info):
         <hr style="margin-top: 30px;">
         <p style="font-size: 14px;">🌼 Have a great day!</p>
         <p style="font-size: 14px;">With love,<br><b>Mimansa Kids Team</b></p>
-        <img src="https://raw.githubusercontent.com/MimansaDeveloper/ProdAdminApp/main/Frontend/src/assets/Salutation.png
-        " alt="Mimansa Kids Salutation" style="height: 30px; margin-bottom: 20px;">
+        <img src="https://raw.githubusercontent.com/MimansaDeveloper/ProdAdminApp/main/Frontend/src/assets/Salutation.png"
+             alt="Salutation" style="height:30px;margin-bottom:20px;">
     </div>
     """
-
 
     return summary
 
