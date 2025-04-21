@@ -84,7 +84,6 @@ const Home = () => {
       justifyContent: 'center',
       gap: '20px',
       marginBottom: '20px',
-      // flexWrap: 'wrap',
     },
     boxOrange: {
       backgroundColor: '#E67E22',
@@ -163,7 +162,7 @@ const Home = () => {
     },
   };
 
-  // Load kids from Firestore.
+  // Load kids from Firestore, then reorder so that our two pairs sit together.
   const loadKidsInfo = async () => {
     try {
       const kidsSnapshot = await getDocs(collection(db, 'kidsInfo'));
@@ -171,7 +170,28 @@ const Home = () => {
         id: doc.id,
         ...doc.data(),
       }));
-      setKids(kidsList);
+
+      // === custom reorder logic ===
+      // the two pairs we want adjacent:
+      const priorityNames = [
+        'Aahil',
+        'Mayra',                  // pair #1
+        'Anagha',
+        'Ayansh Akkinapragada'    // pair #2
+      ];
+
+      // pull out the priority kids in the exact order:
+      const orderedPriority = priorityNames
+        .map(name => kidsList.find(k => k.name === name))
+        .filter(Boolean);
+
+      // everything else, in original fetched order:
+      const others = kidsList.filter(
+        k => !priorityNames.includes(k.name)
+      );
+
+      const finalOrder = [...orderedPriority, ...others];
+      setKids(finalOrder);
     } catch (error) {
       console.error('Error fetching kids info:', error);
     }
@@ -184,11 +204,14 @@ const Home = () => {
       const snapshot = await getDoc(themeDocRef);
       if (snapshot.exists()) {
         const data = snapshot.data();
+        // ... same as before ...
         if (data.theme) {
           if (Array.isArray(data.theme)) {
             setThemeTags(data.theme);
           } else if (typeof data.theme === 'string') {
-            setThemeTags(data.theme.split(',').map((tag) => tag.trim()));
+            setThemeTags(
+              data.theme.split(',').map((tag) => tag.trim())
+            );
           }
         }
         if (data.themeOfTheDay) {
