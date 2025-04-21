@@ -11,7 +11,7 @@ today_str = NOW.strftime("%d %B, %Y")
 
 # Initialize Firebase Admin SDK with your service account key.
 cred = credentials.Certificate(
-    r"D:\Code\ProdDailyReport\Backend\prodadminapp-firebase-adminsdk-fbsvc-9a70300d08.json"
+    r"D:\Code\ProdAdminApp\Backend\prodadminapp-firebase-adminsdk-fbsvc-050eaa9bb6.json"
 )
 firebase_admin.initialize_app(cred)
 db = firestore.client()
@@ -136,7 +136,7 @@ def summarize_report(report, kids_info):
         
         <p style="font-size: 16px; font-family: Arial, sans-serif;">
         👋 Greetings from <b>Mimansa Kids,</b>
-        <img src="https://raw.githubusercontent.com/starry-N8/admin/main/src/assets/Logo.png"
+        <img src="https://raw.githubusercontent.com/MimansaDeveloper/ProdAdminApp/main/Frontend/src/assets/Logo.png"
             alt="Mimansa Kids Logo"
             style="height: 24px; vertical-align: middle; margin-left: 5px;">
 
@@ -187,7 +187,7 @@ def summarize_report(report, kids_info):
         <hr style="margin-top: 30px;">
         <p style="font-size: 14px;">🌼 Have a great day!</p>
         <p style="font-size: 14px;">With love,<br><b>Mimansa Kids Team</b></p>
-        <img src="https://raw.githubusercontent.com/starry-N8/admin/main/src/assets/Salutation.png
+        <img src="https://raw.githubusercontent.com/MimansaDeveloper/ProdAdminApp/main/Frontend/src/assets/Salutation.png
         " alt="Mimansa Kids Salutation" style="height: 30px; margin-bottom: 20px;">
     </div>
     """
