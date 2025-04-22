@@ -163,7 +163,7 @@ const Home = () => {
     },
     outButton: {
       marginTop: '-12px',
-      padding: '6px 46px',
+      padding: '6px 42px',
       borderRadius: '4px',
       border: 'none',
       fontSize: '14px',
