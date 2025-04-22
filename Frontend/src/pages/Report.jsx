@@ -18,6 +18,19 @@ function convertTo24HourFormat(timeStr) {
   return `${String(hours).padStart(2, '0')}:${minutes}`;
 }
 
+/**
+ * Converts a 24‑hour time string (e.g. "14:30")
+ * into a 12‑hour AM/PM string (e.g. "2:30 PM")
+ */
+function convertTo12HourFormat(time24) {
+  if (!time24) return "";
+  let [hourStr, minute] = time24.split(':');
+  let hour = parseInt(hourStr, 10);
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12 || 12;              // convert “0” → 12, “13” → 1, etc.
+  return `${hour}:${minute} ${suffix}`;
+}
+
 const Report = () => {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().substring(0, 10));
@@ -177,12 +190,12 @@ const Report = () => {
     try {
       const ref = doc(db, 'dailyReports', selectedReport.id);
       await updateDoc(ref, {
-        inTime: formData.inTime,
-        outTime: formData.outTime,
+        inTime: convertTo12HourFormat(formData.inTime),
+        outTime: convertTo12HourFormat(formData.outTime),
         snack: formData.snack,
         meal: formData.meal,
-        sleepFrom: formData.sleepFrom,
-        sleepTo: formData.sleepTo,
+        sleepFrom: convertTo12HourFormat(formData.sleepFrom),
+        sleepTo: convertTo12HourFormat(formData.sleepTo),
         sleepNot: formData.sleepNot,
         noDiaper: formData.noDiaper,
         diaperChanges: formData.diaperChanges,
