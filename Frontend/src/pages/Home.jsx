@@ -84,6 +84,7 @@ const Home = () => {
       justifyContent: 'center',
       gap: '20px',
       marginBottom: '20px',
+      // flexWrap: 'wrap',
     },
     boxOrange: {
       backgroundColor: '#E67E22',
@@ -160,9 +161,20 @@ const Home = () => {
       color: '#333',
       transition: 'background-color 0.3s ease',
     },
+    outButton: {
+      marginTop: '-12px',
+      padding: '6px 43px',
+      borderRadius: '4px',
+      border: 'none',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      cursor: 'pointer',
+      backgroundColor: '#475c6c',
+      color: '#fff',
+    },
   };
 
-  // Load kids from Firestore, then reorder so that our two pairs sit together.
+  // Load kids from Firestore.
   const loadKidsInfo = async () => {
     try {
       const kidsSnapshot = await getDocs(collection(db, 'kidsInfo'));
@@ -170,28 +182,7 @@ const Home = () => {
         id: doc.id,
         ...doc.data(),
       }));
-
-      // === custom reorder logic ===
-      // the two pairs we want adjacent:
-      const priorityNames = [
-        'Aahil',
-        'Mayra',                  // pair #1
-        'Anagha',
-        'Ayansh Akkinapragada'    // pair #2
-      ];
-
-      // pull out the priority kids in the exact order:
-      const orderedPriority = priorityNames
-        .map(name => kidsList.find(k => k.name === name))
-        .filter(Boolean);
-
-      // everything else, in original fetched order:
-      const others = kidsList.filter(
-        k => !priorityNames.includes(k.name)
-      );
-
-      const finalOrder = [...orderedPriority, ...others];
-      setKids(finalOrder);
+      setKids(kidsList);
     } catch (error) {
       console.error('Error fetching kids info:', error);
     }
@@ -204,14 +195,11 @@ const Home = () => {
       const snapshot = await getDoc(themeDocRef);
       if (snapshot.exists()) {
         const data = snapshot.data();
-        // ... same as before ...
         if (data.theme) {
           if (Array.isArray(data.theme)) {
             setThemeTags(data.theme);
           } else if (typeof data.theme === 'string') {
-            setThemeTags(
-              data.theme.split(',').map((tag) => tag.trim())
-            );
+            setThemeTags(data.theme.split(',').map((tag) => tag.trim()));
           }
         }
         if (data.themeOfTheDay) {
@@ -259,16 +247,8 @@ const Home = () => {
   const fetchDailyReports = async () => {
     try {
       const today = new Date();
-      const startOfDay = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate()
-      );
-      const endOfDay = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate() + 1
-      );
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
       const reportsQuery = query(
         collection(db, 'dailyReports'),
         where('date', '>=', startOfDay),
@@ -276,15 +256,43 @@ const Home = () => {
       );
       const snapshot = await getDocs(reportsQuery);
       let reportsMapping = {};
-      snapshot.forEach((docSnap) => {
+      snapshot.forEach(docSnap => {
         const data = docSnap.data();
         if (data && data.childName) {
-          reportsMapping[data.childName] = data;
+          reportsMapping[data.childName] = { ...data, id: docSnap.id };
         }
       });
       setDailyReportsMapping(reportsMapping);
     } catch (error) {
       console.error('Error fetching daily reports:', error);
+    }
+  };
+
+
+  const handleMarkOutTime = async (kidName) => {
+    const report = dailyReportsMapping[kidName];
+    // Avoid re-marking if already set
+    if (!report || report.outTime) return;
+
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    try {
+      const reportRef = doc(db, 'dailyReports', report.id);
+      await updateDoc(reportRef, { outTime: formattedTime });
+
+      // Update local state after successful write
+      setDailyReportsMapping(prev => ({
+        ...prev,
+        [kidName]: { ...prev[kidName], outTime: formattedTime }
+      }));
+    } catch (error) {
+      console.error('Error marking out time:', error);
+      alert('Failed to mark out time.');
     }
   };
 
@@ -471,6 +479,19 @@ const Home = () => {
                   {`Marked ${attendanceData[kid.name].status.toUpperCase()} at ${new Date(attendanceData[kid.name].markedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
                 </div>
               )}
+
+              {/* Always show button for present kids with a report; label shows time if set */}
+              {attendanceData[kid.name]?.status === 'present' &&
+                dailyReportsMapping[kid.name] && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    style={styles.outButton}
+                    onClick={() => handleMarkOutTime(kid.name)}
+                  >
+                    {dailyReportsMapping[kid.name].outTime || 'Out Time'}
+                  </button>
+                  </div>
+                )}
             </div>
           );
         })}

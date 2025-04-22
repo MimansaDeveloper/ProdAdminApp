@@ -369,7 +369,7 @@ const DailyReport = () => {
               type="time"
               name="outTime"
               style={inputStyleTime}
-              required
+              // required
               value={formData.outTime}
               onChange={handleChange}
             />
