@@ -292,6 +292,7 @@ const DailyReport = () => {
   const inputStyleTime = { width: '84%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' };
   const textStyle = { ...inputStyle, width: '92%' };
   const buttonStyle = { width: '100%', background: '#fcb69f', color: '#4e342e', fontWeight: '600', fontSize: '16px', padding: '15px', border: 'none', borderRadius: '30px', cursor: 'pointer' };
+  const backButton = { backgroundColor: '#A62C2C', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'block', margin: '20px auto 0' }
   const rowStyle = { display: 'flex', gap: '30px', marginBottom: '15px' };
   const colStyle = { flex: 1, display: 'flex', flexDirection: 'column' };
 
@@ -601,6 +602,7 @@ const DailyReport = () => {
         )}
 
         <button type="submit" style={buttonStyle}>Update</button>
+        <button type="button" style={backButton} onClick={() => navigate('/')}>Back to Home</button>
       </form>
     </div>
   );

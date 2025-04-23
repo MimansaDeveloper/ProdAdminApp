@@ -28,6 +28,7 @@ const Home = () => {
   const [attendanceData, setAttendanceData] = useState({});
   const [dailyReportsMapping, setDailyReportsMapping] = useState({});
   const [docId, setDocId] = useState(null);
+  const [autoMarked, setAutoMarked] = useState(false);
 
   const markedCount = Object.keys(attendanceData).length;
 
@@ -84,7 +85,6 @@ const Home = () => {
       justifyContent: 'center',
       gap: '20px',
       marginBottom: '20px',
-      // flexWrap: 'wrap',
     },
     boxOrange: {
       backgroundColor: '#E67E22',
@@ -163,7 +163,7 @@ const Home = () => {
     },
     outButton: {
       marginTop: '-12px',
-      padding: '6px 42px',
+      padding: '6px 46px',
       borderRadius: '4px',
       border: 'none',
       fontSize: '14px',
@@ -268,11 +268,24 @@ const Home = () => {
     }
   };
 
+  // Automatically mark unmarked kids absent after 12pm
+  useEffect(() => {
+    if (!autoMarked) {
+      const now = new Date();
+      if (now.getHours() >= 12) {
+        kids.forEach(kid => {
+          if (!attendanceData[kid.name]) {
+            markAttendance(kid.name, 'absent');
+          }
+        });
+        setAutoMarked(true);
+      }
+    }
+  }, [autoMarked, kids, attendanceData]);
 
   const handleMarkOutTime = async (kidName) => {
     const report = dailyReportsMapping[kidName];
-    // Avoid re-marking if already set
-    if (!report || report.outTime) return;
+    if (!report) return;
 
     const now = new Date();
     const formattedTime = now.toLocaleTimeString('en-US', {
@@ -292,7 +305,7 @@ const Home = () => {
       }));
     } catch (error) {
       console.error('Error marking out time:', error);
-      alert('Failed to mark out time.');
+      alert('Failed to update out time.');
     }
   };
 
@@ -363,6 +376,17 @@ const Home = () => {
   const progressPercentage =
     kids.length > 0 ? (markedCount / kids.length) * 100 : 0;
 
+  // Sort kids: present first, then unmarked, then absent
+  const sortedKids = [...kids].sort((a, b) => {
+    const statusA = attendanceData[a.name]?.status;
+    const statusB = attendanceData[b.name]?.status;
+    if (statusA === 'present' && statusB !== 'present') return -1;
+    if (statusA !== 'present' && statusB === 'present') return 1;
+    if (statusA === 'absent' && statusB !== 'absent') return 1;
+    if (statusA !== 'absent' && statusB === 'absent') return -1;
+    return a.name.localeCompare(b.name);
+  });
+
   useEffect(() => {
     loadKidsInfo();
     loadThemesFromFirebase();
@@ -428,7 +452,7 @@ const Home = () => {
       </div>
 
       <div style={styles.attendanceSection}>
-        {kids.map((kid) => {
+        {sortedKids.map((kid) => {
           // Determine the styling for the "Present" and "Absent" buttons
           const currentStatus = attendanceData[kid.name]?.status;
           const presentStyle = {
@@ -483,13 +507,13 @@ const Home = () => {
               {/* Always show button for present kids with a report; label shows time if set */}
               {attendanceData[kid.name]?.status === 'present' &&
                 dailyReportsMapping[kid.name] && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
-                    style={styles.outButton}
-                    onClick={() => handleMarkOutTime(kid.name)}
-                  >
-                    {dailyReportsMapping[kid.name].outTime || 'Out Time'}
-                  </button>
+                  <div style={{ display: 'flex', justifyContent: 'right' }}>
+                    <button
+                      style={styles.outButton}
+                      onClick={() => handleMarkOutTime(kid.name)}
+                    >
+                      {dailyReportsMapping[kid.name].outTime || 'Out Time'}
+                    </button>
                   </div>
                 )}
             </div>
