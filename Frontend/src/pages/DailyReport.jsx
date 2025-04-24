@@ -380,7 +380,7 @@ const DailyReport = () => {
         {/* Snack/Meal */}
         <label style={labelStyle}>Child ate Snacks</label>
         <div style={{ marginBottom: '15px' }}>
-          {['All','Some','None'].map(opt => (
+          {['None', 'Some', 'Half', 'Most', 'All'].map(opt => (
             <label key={opt} style={{ marginRight:'10px', fontWeight:'500' }}>
               <input
                 type="radio"
@@ -396,7 +396,7 @@ const DailyReport = () => {
 
         <label style={labelStyle}>Child ate Meals</label>
         <div style={{ marginBottom: '15px' }}>
-          {['All','Some','None'].map(opt => (
+          {['None', 'Some', 'Half', 'Most', 'All'].map(opt => (
             <label key={opt} style={{ marginRight:'10px', fontWeight:'500' }}>
               <input
                 type="radio"

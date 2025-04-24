@@ -301,7 +301,7 @@ const Report = () => {
           {/* Snack and Meal */}
           <label style={styles.label}>Child ate Snacks</label>
           <div style={styles.radioGroup}>
-            {['All','Some','None'].map(opt => (
+            {['None', 'Some', 'Half', 'Most', 'All'].map(opt => (
               <label key={opt} style={{ fontWeight: '500' }}>
                 <input type='radio' name='snack' value={opt} onChange={handleChange} checked={formData.snack===opt} required /> {opt}
               </label>
@@ -309,7 +309,7 @@ const Report = () => {
           </div>
           <label style={styles.label}>Child ate Meals</label>
           <div style={styles.radioGroup}>
-            {['All','Some','None'].map(opt => (
+            {['None', 'Some', 'Half', 'Most', 'All'].map(opt => (
               <label key={opt} style={{ fontWeight: '500' }}>
                 <input type='radio' name='meal' value={opt} onChange={handleChange} checked={formData.meal===opt} required /> {opt}
               </label>
