@@ -101,6 +101,7 @@ def summarize_report(report, kids_info):
     in_time     = report.get("inTime",     "N/A")
     out_time    = report.get("outTime",    "N/A")
     pooped      = report.get("poops",      "N/A")
+    snackStatus = report.get("snack", "N/A").lower()
     foodStatus  = report.get("meal",       "N/A").lower()
 
     # Diaper vs Toilet
@@ -148,10 +149,7 @@ def summarize_report(report, kids_info):
     summary = f"""
     <div style="font-family: Arial, sans-serif; color: #333;">
         <p style="font-size: 16px;">
-          👋 Greetings from <b>Mimansa Kids,</b>
-          <img src="https://raw.githubusercontent.com/MimansaDeveloper/ProdAdminApp/main/Frontend/src/assets/Logo.png"
-               alt="Mimansa Kids Logo"
-               style="height:24px;vertical-align:middle;margin-left:5px;">
+          Greetings from <b>Mimansa Kids,</b>
         </p>
         <p style="font-size: 15px;">
           Here's a summary of your child <b>{childName}</b>'s day at our Eden Garden center for <b>{today_str}</b>.
@@ -161,28 +159,29 @@ def summarize_report(report, kids_info):
             <tr><td>🕔</td><td><b>Left at:</b> {out_time}</td></tr>
             <tr><td>{diaper_emoji}</td><td><b>{diaper_label}</b> {diaper_count}</td></tr>
             <tr><td>💩</td><td><b>Bowel movements (# times):</b> {pooped}</td></tr>
-            <tr><td>😊</td><td><b>Feelings:</b> {feelings_str}</td></tr>
-            <tr><td>🍱</td><td><b>Food:</b> Ate {foodStatus} food</td></tr>
+            <tr><td>😊</td><td><b>{childName} was feeling:</b> {feelings_str}</td></tr>
+            <tr><td>🍪</td><td><b>Snack:</b> Ate {snackStatus} snack</td></tr>
+            <tr><td>🍱</td><td><b>Meal:</b> Ate {foodStatus} meal</td></tr>
             {f"<tr><td>🛏️</td><td><b>Sleep:</b> Slept from {sleep_from} to {sleep_to}</td></tr>" if sleep_info else ""}
         </table>
         <br>
-        <p style="font-size: 15px;"><b>🎨 Theme of the Day:</b> {theme_str}</p>
-        <p style="font-size: 15px;"><b>🧑‍🏫 Teacher's Note:</b> {teacher_note}</p>
+        <p style="font-size: 15px;"><b>Theme of the Day:</b> {theme_str}</p>
+        <p style="font-size: 15px;"><b>Teacher's Note:</b> {teacher_note}</p>
     """
 
     if ouch_report:
         summary += f"""
-        <p style="font-size: 15px;"><b>🩹 Ouch Report:</b> {ouch_report}</p>
+        <p style="font-size: 15px;"><b>Ouch Report:</b> {ouch_report}</p>
         """
 
     if common_note:
         summary += f"""
-        <p style="font-size: 15px;"><b>📢 Note for Parents:</b> {common_note}</p>
+        <p style="font-size: 15px;"><b>Note for Parents:</b> {common_note}</p>
         """
 
     summary += """
         <hr style="margin-top: 30px;">
-        <p style="font-size: 14px;">🌼 Have a great day!</p>
+        <p style="font-size: 14px;">Have a great day!</p>
         <p style="font-size: 14px;">With love,<br><b>Mimansa Kids Team</b></p>
         <img src="https://raw.githubusercontent.com/MimansaDeveloper/ProdAdminApp/main/Frontend/src/assets/Salutation.png"
              alt="Salutation" style="height:30px;margin-bottom:20px;">
