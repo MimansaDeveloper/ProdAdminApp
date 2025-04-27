@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import giraffeIcon from '../assets/Logo.png';
+// import { auth } from '../firebase/firebase';
 import {
   collection,
   query,
@@ -12,7 +13,7 @@ import {
   doc,
   getDoc
 } from 'firebase/firestore';
-import { db } from '../firebase/firebase';
+import { db, auth } from '../firebase/firebase';
 
 const StarIcon = () => (
   <span style={{ color: '#FFD700', marginRight: '6px' }}>★</span>
@@ -386,6 +387,7 @@ const Home = () => {
     if (statusA !== 'absent' && statusB === 'absent') return -1;
     return a.name.localeCompare(b.name);
   });
+  
 
   useEffect(() => {
     loadKidsInfo();
@@ -404,7 +406,23 @@ const Home = () => {
             style={{ width: '70px', height: '70px' }}
           />
         </div>
-        <span style={styles.dateText}>{todayDateString}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+          <span style={styles.dateText}>{todayDateString}</span>
+          <button
+            onClick={() => { auth.signOut(); navigate('/login'); }}
+            style={{
+              padding: '6px 18px',
+              borderRadius: '4px',
+              border: 'none',
+              backgroundColor: '#f28c8c',
+              color: '#fff',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+            }}
+          >
+            Log Out
+          </button>
+        </div>
       </header>
 
       <div style={styles.attendanceSummary}>
