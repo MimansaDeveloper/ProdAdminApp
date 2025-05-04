@@ -36,7 +36,7 @@ export default function Login() {
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #ffecd2, #fcb69f)',
+      background: '#eef3f7', 
       padding: '0 16px',
       boxSizing: 'border-box'
     },
