@@ -17,11 +17,24 @@ const ThemeManagement = () => {
   // Temp input for adding a new tag
   const [tagInput, setTagInput] = useState('');
 
-  // Helper: get today's date as YYYY‑MM‑DD in local time
+  // Helper: get today's date as YYYY-MM-DD in local time
   const todayStr = (() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
+
+  const normalizeList = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      return value.split(',').map(v => v.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const normalizeDayThemes = (values, currentTags) => {
+    const tagSet = new Set(currentTags);
+    return Array.from(new Set(values)).filter(v => tagSet.has(v));
+  };
 
   // Load tags, dayThemes, and today's commonParentsNote
   useEffect(() => {
@@ -33,8 +46,10 @@ const ThemeManagement = () => {
         if (!snap.exists()) return;
         const data = snap.data();
 
-        setTags(data.theme || []);
-        setDayThemes(data.themeOfTheDay || []);
+        const loadedTags = normalizeList(data.theme);
+        const loadedDayThemes = normalizeList(data.themeOfTheDay);
+        setTags(loadedTags);
+        setDayThemes(normalizeDayThemes(loadedDayThemes, loadedTags));
 
         // Only prefill if it was saved today
         if (data.commonParentsNoteDate === todayStr) {
@@ -86,12 +101,14 @@ const ThemeManagement = () => {
   // Theme-of-the-Day checkbox handler
   const handleDayThemeChange = async (e, tag) => {
     const checked = e.target.checked;
+    const base = normalizeDayThemes(dayThemes, tags);
     const newDay = checked
-      ? [...dayThemes, tag]
-      : dayThemes.filter(t => t !== tag);
+      ? [...base, tag]
+      : base.filter(t => t !== tag);
+    const uniqueDay = Array.from(new Set(newDay));
 
-    setDayThemes(newDay);
-    await saveConfig({ themeOfTheDay: newDay });
+    setDayThemes(uniqueDay);
+    await saveConfig({ themeOfTheDay: uniqueDay });
   };
 
   // Save today's Common Parents Note with a date stamp
