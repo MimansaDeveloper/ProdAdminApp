@@ -19,6 +19,7 @@ const REPORT_STATUS = {
   FULL: 'full'
 };
 const WEEKLY_THEME_PREVIEW_COUNT = 4;
+const MOBILE_LAYOUT_BREAKPOINT = 700;
 
 const getReportStatus = (report) => (
   report?.reportStatus === REPORT_STATUS.PARTIAL
@@ -113,6 +114,9 @@ const Home = () => {
   const [docId, setDocId] = useState(null);
   const [autoMarked, setAutoMarked] = useState(false);
   const [isWeeklyThemeExpanded, setIsWeeklyThemeExpanded] = useState(false);
+  const [isMobileLayout, setIsMobileLayout] = useState(
+    () => window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT
+  );
 
   const registeredKidNames = new Set(kids.map((kid) => kid.name));
   const markedCount = Object.entries(attendanceData).filter(([kidName, record]) => (
@@ -239,11 +243,11 @@ const Home = () => {
       justifyContent: 'space-between',
       alignItems: 'flex-start',
       flexWrap: 'wrap',
-      rowGap: '6px',
+      rowGap: isMobileLayout ? '10px' : '6px',
       columnGap: '12px'
     },
     infoColumn: {
-      flex: '1 1 220px',
+      flex: isMobileLayout ? '1 1 100%' : '1 1 220px',
       minWidth: 0,
       display: 'flex',
       flexDirection: 'column',
@@ -277,9 +281,9 @@ const Home = () => {
       color: '#444'
     },
     actionColumn: {
-      width: '172px',
+      width: isMobileLayout ? '100%' : '172px',
       maxWidth: '100%',
-      marginLeft: 'auto',
+      marginLeft: isMobileLayout ? 0 : 'auto',
       display: 'flex',
       flexDirection: 'column',
       gap: '8px',
@@ -300,7 +304,8 @@ const Home = () => {
       backgroundColor: '#ccc',
       color: '#333',
       transition: 'background-color 0.3s ease',
-      flex: 1
+      flex: 1,
+      minWidth: 0
     },
     outButton: {
       width: '100%',
@@ -508,6 +513,15 @@ const Home = () => {
       }
     }
   }, [autoMarked, kids, attendanceData, markAttendance]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileLayout(window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleMarkOutTime = async (kidName) => {
     const attendance = attendanceData[kidName];
