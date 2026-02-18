@@ -114,7 +114,11 @@ const Home = () => {
   const [autoMarked, setAutoMarked] = useState(false);
   const [isWeeklyThemeExpanded, setIsWeeklyThemeExpanded] = useState(false);
 
-  const markedCount = Object.keys(attendanceData).length;
+  const registeredKidNames = new Set(kids.map((kid) => kid.name));
+  const markedCount = Object.entries(attendanceData).filter(([kidName, record]) => (
+    registeredKidNames.has(kidName) &&
+    (record?.status === 'present' || record?.status === 'absent')
+  )).length;
 
   const styles = {
     container: {
@@ -529,7 +533,9 @@ const Home = () => {
     year: 'numeric'
   });
 
-  const progressPercentage = kids.length > 0 ? (markedCount / kids.length) * 100 : 0;
+  const progressPercentage = kids.length > 0
+    ? Math.min(100, (markedCount / kids.length) * 100)
+    : 0;
   const hasWeeklyThemeOverflow = themeTags.length > WEEKLY_THEME_PREVIEW_COUNT;
   const weeklyThemeVisibleTags = hasWeeklyThemeOverflow && !isWeeklyThemeExpanded
     ? themeTags.slice(0, WEEKLY_THEME_PREVIEW_COUNT)
