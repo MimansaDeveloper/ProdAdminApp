@@ -16,6 +16,7 @@ const REPORT_STATUS = {
   PARTIAL: 'partial',
   FULL: 'full'
 };
+const THEME_PREVIEW_COUNT = 8;
 
 const getReportStatus = (report) => (
   report?.reportStatus === REPORT_STATUS.PARTIAL
@@ -142,6 +143,7 @@ const DailyReport = () => {
   const [reportsLoaded, setReportsLoaded] = useState(false);
   const [hasAppliedInitialChild, setHasAppliedInitialChild] = useState(!childFromParam);
   const [isSaving, setIsSaving] = useState(false);
+  const [isThemeSectionExpanded, setIsThemeSectionExpanded] = useState(false);
 
   const feelingsOptions = [
     { label: 'Happy', emoji: '😊' },
@@ -434,6 +436,7 @@ const DailyReport = () => {
 
     if (name === 'childName') {
       setHasAppliedInitialChild(true);
+      setIsThemeSectionExpanded(false);
       const existing = reportDocsByChild[value];
       if (existing) {
         setFormData(mapReportToFormData(existing, configDefaults));
@@ -516,12 +519,22 @@ const DailyReport = () => {
   const backButton = { backgroundColor: '#A62C2C', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'block', margin: '20px auto 0' };
   const rowStyle = { display: 'flex', gap: '30px', marginBottom: '15px' };
   const colStyle = { flex: 1, display: 'flex', flexDirection: 'column' };
+  const sectionToggleButton = { marginTop: '8px', background: 'transparent', border: 'none', color: '#8d4f3d', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline', padding: 0 };
 
   const availableChildren = Object.keys(presentChildren)
     .filter((name) => {
       const report = reportDocsByChild[name];
       return !report || getReportStatus(report) !== REPORT_STATUS.FULL || name === formData.childName;
     });
+  const selectedThemeSet = new Set(formData.themes);
+  const sortedThemeOptions = [
+    ...availableThemes.filter((opt) => selectedThemeSet.has(opt)),
+    ...availableThemes.filter((opt) => !selectedThemeSet.has(opt))
+  ];
+  const hasThemeOverflow = sortedThemeOptions.length > THEME_PREVIEW_COUNT;
+  const visibleThemeOptions = hasThemeOverflow && !isThemeSectionExpanded
+    ? sortedThemeOptions.slice(0, THEME_PREVIEW_COUNT)
+    : sortedThemeOptions;
 
   return (
     <div style={containerStyle}>
@@ -751,7 +764,7 @@ const DailyReport = () => {
         <label style={labelStyle}>Theme of the Day</label>
         <div style={{ marginBottom: '20px' }}>
           {availableThemes.length
-            ? availableThemes.map((opt) => (
+            ? visibleThemeOptions.map((opt) => (
                 <label key={opt} style={{ marginRight: '10px', fontWeight: '500' }}>
                   <input
                     type="checkbox"
@@ -763,6 +776,15 @@ const DailyReport = () => {
                 </label>
               ))
             : <p>No themes available</p>}
+          {hasThemeOverflow && (
+            <button
+              type="button"
+              style={sectionToggleButton}
+              onClick={() => setIsThemeSectionExpanded((prev) => !prev)}
+            >
+              {isThemeSectionExpanded ? 'Show fewer themes' : `Show all themes (${availableThemes.length})`}
+            </button>
+          )}
         </div>
 
         <label style={labelStyle}>Teacher's Note</label>

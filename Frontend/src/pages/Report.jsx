@@ -3,6 +3,8 @@ import { collection, query, where, getDocs, doc, updateDoc, getDoc } from 'fireb
 import { db } from '../firebase/firebase';
 import { useNavigate } from 'react-router-dom';
 
+const THEME_PREVIEW_COUNT = 8;
+
 /**
  * Converts a time string stored in AM/PM format (e.g. "2:30 PM")
  * to the 24-hour format (e.g. "14:30") required for <input type="time">
@@ -58,6 +60,7 @@ const Report = () => {
     commonParentsNote: ''
   });
   const [availableThemes, setAvailableThemes] = useState([]);
+  const [isThemeSectionExpanded, setIsThemeSectionExpanded] = useState(false);
 
   const feelingsOptions = [
     { label: 'Happy', emoji: '😊' },
@@ -119,6 +122,7 @@ const Report = () => {
   // When a report is clicked, load into form
   const handleReportSelect = report => {
     setSelectedReport(report);
+    setIsThemeSectionExpanded(false);
     let emailsArr = [];
     if (Array.isArray(report.emails) && report.emails.length) {
       emailsArr = report.emails;
@@ -234,9 +238,20 @@ const Report = () => {
     inputTime: { width: '90%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ffc107', fontSize: '15px', outline: 'none' },
     radioGroup: { display: 'flex', gap: '10px', marginBottom: '15px' },
     inlineContainer: { display: 'flex', gap: '30px', marginBottom: '15px' },
+    sectionToggleButton: { marginTop: '8px', background: 'transparent', border: 'none', color: '#8d4f3d', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline', padding: 0 },
     button: { width: '100%', background: '#fcb69f', color: '#4e342e', fontWeight: '600', fontSize: '16px', padding: '15px', border: 'none', borderRadius: '30px', cursor: 'pointer', marginBottom: '10px' },
     backButton: { backgroundColor: '#A62C2C', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'block', margin: '20px auto 0' }
   };
+
+  const selectedThemeSet = new Set(formData.themeOfTheDay);
+  const sortedThemeOptions = [
+    ...availableThemes.filter((opt) => selectedThemeSet.has(opt)),
+    ...availableThemes.filter((opt) => !selectedThemeSet.has(opt))
+  ];
+  const hasThemeOverflow = sortedThemeOptions.length > THEME_PREVIEW_COUNT;
+  const visibleThemeOptions = hasThemeOverflow && !isThemeSectionExpanded
+    ? sortedThemeOptions.slice(0, THEME_PREVIEW_COUNT)
+    : sortedThemeOptions;
 
   return (
     <div style={styles.container}>
@@ -393,11 +408,20 @@ const Report = () => {
           {/* Theme of the Day */}
           <label style={styles.label}>Theme of the Day</label>
           <div style={{ marginBottom: '20px' }}>
-            {availableThemes.length > 0 ? availableThemes.map(opt => (
+            {availableThemes.length > 0 ? visibleThemeOptions.map(opt => (
               <label key={opt} style={{ fontWeight: '500', marginRight: '10px' }}>
                 <input type='checkbox' name='themeOfTheDay' value={opt} onChange={handleChange} checked={formData.themeOfTheDay.includes(opt)} /> {opt}
               </label>
             )) : <p>No themes available</p>}
+            {hasThemeOverflow && (
+              <button
+                type='button'
+                style={styles.sectionToggleButton}
+                onClick={() => setIsThemeSectionExpanded(prev => !prev)}
+              >
+                {isThemeSectionExpanded ? 'Show fewer themes' : `Show all themes (${availableThemes.length})`}
+              </button>
+            )}
           </div>
 
           {/* Notes */}

@@ -18,6 +18,7 @@ const REPORT_STATUS = {
   PARTIAL: 'partial',
   FULL: 'full'
 };
+const WEEKLY_THEME_PREVIEW_COUNT = 4;
 
 const getReportStatus = (report) => (
   report?.reportStatus === REPORT_STATUS.PARTIAL
@@ -111,6 +112,7 @@ const Home = () => {
   const [dailyReportsMapping, setDailyReportsMapping] = useState({});
   const [docId, setDocId] = useState(null);
   const [autoMarked, setAutoMarked] = useState(false);
+  const [isWeeklyThemeExpanded, setIsWeeklyThemeExpanded] = useState(false);
 
   const markedCount = Object.keys(attendanceData).length;
 
@@ -160,6 +162,17 @@ const Home = () => {
     themeLine: {
       marginTop: '10px',
       fontStyle: 'italic'
+    },
+    themeToggleButton: {
+      marginTop: '4px',
+      marginLeft: '22px',
+      background: 'transparent',
+      border: 'none',
+      color: '#ffd60a',
+      fontSize: '13px',
+      cursor: 'pointer',
+      textDecoration: 'underline',
+      padding: 0
     },
     reportLegend: {
       marginTop: '8px',
@@ -517,6 +530,12 @@ const Home = () => {
   });
 
   const progressPercentage = kids.length > 0 ? (markedCount / kids.length) * 100 : 0;
+  const hasWeeklyThemeOverflow = themeTags.length > WEEKLY_THEME_PREVIEW_COUNT;
+  const weeklyThemeVisibleTags = hasWeeklyThemeOverflow && !isWeeklyThemeExpanded
+    ? themeTags.slice(0, WEEKLY_THEME_PREVIEW_COUNT)
+    : themeTags;
+  const weeklyThemeSummary = weeklyThemeVisibleTags.join(', ') || 'None';
+  const hiddenWeeklyCount = themeTags.length - weeklyThemeVisibleTags.length;
 
   const sortedKids = [...kids].sort((a, b) => {
     const statusA = attendanceData[a.name]?.status;
@@ -574,9 +593,21 @@ const Home = () => {
             style={{ ...styles.progressBarInner, width: `${progressPercentage}%` }}
           />
         </div>
-        <p style={styles.themeLine}>
-          <StarIcon /> Theme of the week: {themeTags.join(', ')}
-        </p>
+        <div style={styles.themeLine}>
+          <span><StarIcon /> Theme of the week: {weeklyThemeSummary}</span>
+          {hasWeeklyThemeOverflow && !isWeeklyThemeExpanded && hiddenWeeklyCount > 0 && (
+            <span>{` +${hiddenWeeklyCount} more`}</span>
+          )}
+          {hasWeeklyThemeOverflow && (
+            <button
+              type="button"
+              style={styles.themeToggleButton}
+              onClick={() => setIsWeeklyThemeExpanded((prev) => !prev)}
+            >
+              {isWeeklyThemeExpanded ? 'Show less' : `Show all ${themeTags.length}`}
+            </button>
+          )}
+        </div>
         <p style={styles.themeLine}>
           <StarIcon /> Theme of the day: {dayThemes.join(', ')}
         </p>
