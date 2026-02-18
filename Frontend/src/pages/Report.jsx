@@ -105,7 +105,9 @@ const Report = () => {
           where('date', '<', endOfDay)
         );
         const snap = await getDocs(q);
-        const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const fetched = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(report => report.reportStatus !== 'partial');
         setReports(fetched);
       } catch (err) {
         console.error('Error fetching reports:', err);
@@ -206,7 +208,9 @@ const Report = () => {
         themeOfTheDay: formData.themeOfTheDay,
         ouch: formData.ouch,
         ouchReport: formData.ouchReport,
-        commonParentsNote: formData.commonParentsNote
+        commonParentsNote: formData.commonParentsNote,
+        reportStatus: 'full',
+        updatedAt: new Date()
       });
       alert('Report updated successfully!');
       setSelectedReport(null);

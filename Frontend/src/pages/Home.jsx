@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import giraffeIcon from '../assets/Logo.png';
 import {
@@ -14,6 +14,89 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../firebase/firebase';
 
+const REPORT_STATUS = {
+  PARTIAL: 'partial',
+  FULL: 'full'
+};
+
+const getReportStatus = (report) => (
+  report?.reportStatus === REPORT_STATUS.PARTIAL
+    ? REPORT_STATUS.PARTIAL
+    : REPORT_STATUS.FULL
+);
+
+const convertTimeTo24Hour = (timeStr) => {
+  if (!timeStr) return '';
+  const normalized = String(timeStr).trim();
+  if (!normalized.includes(' ')) return normalized;
+
+  const [time, modifier] = normalized.split(' ');
+  if (!modifier) return normalized;
+
+  const [hours, minutes] = time.split(':');
+  let hour = parseInt(hours, 10);
+  if (Number.isNaN(hour) || minutes === undefined) return '';
+
+  const suffix = modifier.toUpperCase();
+  if (suffix === 'PM' && hour !== 12) hour += 12;
+  if (suffix === 'AM' && hour === 12) hour = 0;
+
+  return `${String(hour).padStart(2, '0')}:${minutes}`;
+};
+
+const hasMeaningfulDraftContent = (report, attendanceRecord) => {
+  if (!report) return false;
+
+  const attendanceInTime = convertTimeTo24Hour(attendanceRecord?.time || '');
+  const reportInTime = convertTimeTo24Hour(report.inTime || '');
+  const hasCustomInTime = reportInTime && attendanceInTime
+    ? reportInTime !== attendanceInTime
+    : Boolean(reportInTime);
+
+  const hasTextInput = [
+    report.outTime,
+    report.snack,
+    report.meal,
+    report.sleepFrom,
+    report.sleepTo,
+    report.diaperChanges,
+    report.toiletVisits,
+    report.poops,
+    report.notes,
+    report.ouchReport
+  ].some((value) => String(value || '').trim() !== '');
+
+  const hasCheckedFlags = Boolean(report.sleepNot || report.noDiaper || report.ouch);
+  const hasFeelings = Array.isArray(report.feelings) && report.feelings.length > 0;
+
+  return hasCustomInTime || hasTextInput || hasCheckedFlags || hasFeelings;
+};
+
+const toMillis = (value) => {
+  if (!value) return 0;
+  if (typeof value?.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const pickPreferredReport = (current, candidate) => {
+  if (!current) return candidate;
+
+  const currentStatus = getReportStatus(current);
+  const candidateStatus = getReportStatus(candidate);
+
+  if (currentStatus !== candidateStatus) {
+    return candidateStatus === REPORT_STATUS.FULL ? candidate : current;
+  }
+
+  const currentTs = Math.max(toMillis(current.updatedAt), toMillis(current.date));
+  const candidateTs = Math.max(toMillis(candidate.updatedAt), toMillis(candidate.date));
+
+  return candidateTs >= currentTs ? candidate : current;
+};
+
 const StarIcon = () => (
   <span style={{ color: '#FFD700', marginRight: '6px' }}>★</span>
 );
@@ -21,7 +104,6 @@ const StarIcon = () => (
 const Home = () => {
   const navigate = useNavigate();
 
-  // State for theme of the week (all available tags) and for theme of the day.
   const [themeTags, setThemeTags] = useState([]);
   const [dayThemes, setDayThemes] = useState([]);
   const [kids, setKids] = useState([]);
@@ -32,59 +114,64 @@ const Home = () => {
 
   const markedCount = Object.keys(attendanceData).length;
 
-  // Updated UI styles including a new style for Report box.
   const styles = {
     container: {
       padding: '20px',
       fontFamily: 'Inter, Arial, sans-serif',
       background: 'linear-gradient(135deg, #ffecd2, #fcb69f)',
-      minHeight: '100vh',
+      minHeight: '100vh'
     },
     header: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: '20px',
+      marginBottom: '20px'
     },
     title: {
       margin: 0,
       color: '#555',
       fontSize: '24px',
-      fontWeight: '700',
+      fontWeight: '700'
     },
     dateText: {
       fontSize: '16px',
-      color: '#555',
+      color: '#555'
     },
     attendanceSummary: {
       backgroundColor: '#444',
       color: '#fff',
       padding: '20px',
       borderRadius: '8px',
-      marginBottom: '20px',
+      marginBottom: '20px'
     },
     progressBarOuter: {
       width: '100%',
       height: '15px',
       backgroundColor: '#eee',
       borderRadius: '8px',
-      marginTop: '15px',
+      marginTop: '15px'
     },
     progressBarInner: {
       height: '15px',
       backgroundColor: '#ffd60a',
       borderRadius: '8px',
-      transition: 'width 0.4s ease',
+      transition: 'width 0.4s ease'
     },
     themeLine: {
       marginTop: '10px',
-      fontStyle: 'italic',
+      fontStyle: 'italic'
+    },
+    reportLegend: {
+      marginTop: '8px',
+      marginBottom: 0,
+      fontSize: '13px',
+      color: '#ffe4a3'
     },
     twoBoxesContainer: {
       display: 'flex',
       justifyContent: 'center',
       gap: '20px',
-      marginBottom: '20px',
+      marginBottom: '20px'
     },
     boxOrange: {
       backgroundColor: '#E67E22',
@@ -95,7 +182,7 @@ const Home = () => {
       fontWeight: 'bold',
       fontSize: '16px',
       borderRadius: '8px',
-      cursor: 'pointer',
+      cursor: 'pointer'
     },
     boxYellow: {
       backgroundColor: '#F1C40F',
@@ -106,7 +193,7 @@ const Home = () => {
       fontWeight: 'bold',
       fontSize: '16px',
       borderRadius: '8px',
-      cursor: 'pointer',
+      cursor: 'pointer'
     },
     boxBlue: {
       backgroundColor: '#4e342e',
@@ -117,38 +204,50 @@ const Home = () => {
       fontWeight: 'bold',
       fontSize: '16px',
       borderRadius: '8px',
-      cursor: 'pointer',
+      cursor: 'pointer'
     },
     attendanceSection: {
       backgroundColor: '#ffffff',
       padding: '15px',
       borderRadius: '8px',
       boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-      marginBottom: '20px',
+      marginBottom: '20px'
     },
     kidRow: {
       padding: '10px 5px',
-      borderBottom: '1px solid #eee',
+      borderBottom: '1px solid #eee'
     },
     rowTop: {
       display: 'flex',
       justifyContent: 'space-between',
+      alignItems: 'center'
+    },
+    nameCell: {
+      display: 'flex',
       alignItems: 'center',
+      gap: '8px',
+      flexWrap: 'wrap'
     },
     kidName: {
       fontSize: '16px',
       cursor: 'pointer',
       fontWeight: 'bold',
-      color: '#555',
+      color: '#555'
     },
     tickIcon: {
       color: 'green',
       marginLeft: '8px',
-      fontSize: '18px',
+      fontSize: '18px'
+    },
+    reportPill: {
+      padding: '3px 8px',
+      borderRadius: '999px',
+      fontSize: '11px',
+      fontWeight: '700'
     },
     buttonGroup: {
       display: 'flex',
-      gap: '8px',
+      gap: '8px'
     },
     button: {
       padding: '6px 10px',
@@ -159,7 +258,7 @@ const Home = () => {
       cursor: 'pointer',
       backgroundColor: '#ccc',
       color: '#333',
-      transition: 'background-color 0.3s ease',
+      transition: 'background-color 0.3s ease'
     },
     outButton: {
       marginTop: '-12px',
@@ -170,17 +269,53 @@ const Home = () => {
       fontWeight: 'bold',
       cursor: 'pointer',
       backgroundColor: '#475c6c',
-      color: '#fff',
-    },
+      color: '#fff'
+    }
   };
 
-  // Load kids from Firestore.
+  const getReportStateForKid = (kidName) => {
+    const attendanceStatus = attendanceData[kidName]?.status;
+    if (attendanceStatus !== 'present') return null;
+
+    const notFilledState = {
+      value: 'not_filled',
+      label: 'Not filled',
+      backgroundColor: '#f8d7da',
+      color: '#842029'
+    };
+
+    const report = dailyReportsMapping[kidName];
+    if (!report) {
+      return notFilledState;
+    }
+
+    if (getReportStatus(report) === REPORT_STATUS.PARTIAL) {
+      if (!hasMeaningfulDraftContent(report, attendanceData[kidName])) {
+        return notFilledState;
+      }
+
+      return {
+        value: 'partial',
+        label: 'Partially filled',
+        backgroundColor: '#fff3cd',
+        color: '#664d03'
+      };
+    }
+
+    return {
+      value: 'full',
+      label: 'Fully filled',
+      backgroundColor: '#d1e7dd',
+      color: '#0f5132'
+    };
+  };
+
   const loadKidsInfo = async () => {
     try {
       const kidsSnapshot = await getDocs(collection(db, 'kidsInfo'));
-      const kidsList = kidsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
+      const kidsList = kidsSnapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
       }));
       setKids(kidsList);
     } catch (error) {
@@ -188,23 +323,24 @@ const Home = () => {
     }
   };
 
-  // Load theme settings from Firebase.
   const loadThemesFromFirebase = async () => {
     try {
       const themeDocRef = doc(db, 'appConfig', 'themeOfTheWeek');
       const snapshot = await getDoc(themeDocRef);
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.theme) {
-          if (Array.isArray(data.theme)) {
-            setThemeTags(data.theme);
-          } else if (typeof data.theme === 'string') {
-            setThemeTags(data.theme.split(',').map((tag) => tag.trim()));
-          }
+
+      if (!snapshot.exists()) return;
+
+      const data = snapshot.data();
+      if (data.theme) {
+        if (Array.isArray(data.theme)) {
+          setThemeTags(data.theme);
+        } else if (typeof data.theme === 'string') {
+          setThemeTags(data.theme.split(',').map((tag) => tag.trim()));
         }
-        if (data.themeOfTheDay) {
-          setDayThemes(data.themeOfTheDay);
-        }
+      }
+
+      if (data.themeOfTheDay) {
+        setDayThemes(data.themeOfTheDay);
       }
     } catch (error) {
       console.error('Error loading themes from Firebase:', error);
@@ -214,23 +350,18 @@ const Home = () => {
   const fetchAttendance = async () => {
     try {
       const today = new Date();
-      const startOfDay = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate()
-      );
-      const endOfDay = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate() + 1
-      );
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
       const attendanceQuery = query(
         collection(db, 'attendance'),
         where('date', '>=', startOfDay),
         where('date', '<', endOfDay)
       );
+
       const snapshot = await getDocs(attendanceQuery);
       let tempAttendance = {};
+
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         if (data && data.attendance) {
@@ -238,6 +369,7 @@ const Home = () => {
         }
         setDocId(docSnap.id);
       });
+
       setAttendanceData(tempAttendance);
     } catch (error) {
       console.error('Error fetching attendance:', error);
@@ -249,31 +381,83 @@ const Home = () => {
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
       const reportsQuery = query(
         collection(db, 'dailyReports'),
         where('date', '>=', startOfDay),
         where('date', '<', endOfDay)
       );
+
       const snapshot = await getDocs(reportsQuery);
-      let reportsMapping = {};
-      snapshot.forEach(docSnap => {
+      const reportsMapping = {};
+
+      snapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        if (data && data.childName) {
-          reportsMapping[data.childName] = { ...data, id: docSnap.id };
-        }
+        if (!data?.childName) return;
+
+        const candidate = {
+          ...data,
+          id: docSnap.id,
+          reportStatus: getReportStatus(data)
+        };
+
+        reportsMapping[data.childName] = pickPreferredReport(
+          reportsMapping[data.childName],
+          candidate
+        );
       });
+
       setDailyReportsMapping(reportsMapping);
     } catch (error) {
       console.error('Error fetching daily reports:', error);
     }
   };
 
-  // Automatically mark unmarked kids absent after 12pm
+  const markAttendance = useCallback(async (kidName, status) => {
+    const now = new Date();
+    const dateString = now.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    const timeHHMM = `${now.getHours().toString().padStart(2, '0')}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, '0')}`;
+
+    const updatedRecord = { status, time: timeHHMM, markedAt: dateString };
+
+    setAttendanceData((prev) => ({ ...prev, [kidName]: updatedRecord }));
+
+    try {
+      if (docId) {
+        const attendanceRef = doc(db, 'attendance', docId);
+        await updateDoc(attendanceRef, {
+          [`attendance.${kidName}`]: updatedRecord,
+          date: new Date()
+        });
+      } else {
+        const newDoc = await addDoc(collection(db, 'attendance'), {
+          date: new Date(),
+          attendance: { [kidName]: updatedRecord }
+        });
+        setDocId(newDoc.id);
+      }
+    } catch (error) {
+      console.error('Error marking attendance:', error);
+      alert('Failed to mark attendance.');
+    }
+  }, [docId]);
+
   useEffect(() => {
     if (!autoMarked) {
       const now = new Date();
       if (now.getHours() >= 12) {
-        kids.forEach(kid => {
+        kids.forEach((kid) => {
           if (!attendanceData[kid.name]) {
             markAttendance(kid.name, 'absent');
           }
@@ -281,27 +465,26 @@ const Home = () => {
         setAutoMarked(true);
       }
     }
-  }, [autoMarked, kids, attendanceData]);
+  }, [autoMarked, kids, attendanceData, markAttendance]);
 
   const handleMarkOutTime = async (kidName) => {
     const report = dailyReportsMapping[kidName];
-    if (!report) return;
+    if (!report || getReportStatus(report) !== REPORT_STATUS.FULL) return;
 
     const now = new Date();
     const formattedTime = now.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true,
+      hour12: true
     });
 
     try {
       const reportRef = doc(db, 'dailyReports', report.id);
-      await updateDoc(reportRef, { outTime: formattedTime });
+      await updateDoc(reportRef, { outTime: formattedTime, updatedAt: new Date() });
 
-      // Update local state after successful write
-      setDailyReportsMapping(prev => ({
+      setDailyReportsMapping((prev) => ({
         ...prev,
-        [kidName]: { ...prev[kidName], outTime: formattedTime }
+        [kidName]: { ...prev[kidName], outTime: formattedTime, updatedAt: new Date() }
       }));
     } catch (error) {
       console.error('Error marking out time:', error);
@@ -315,68 +498,26 @@ const Home = () => {
       alert(`Daily report can only be submitted if ${kidName} is marked Present.`);
       return;
     }
-    if (dailyReportsMapping[kidName]) {
-      alert(`Daily report for ${kidName} has already been submitted.`);
-    } else {
-      navigate(
-        `/daily-report?child=${encodeURIComponent(kidName)}&themeOfTheDay=${encodeURIComponent(dayThemes.join(', '))}`
-      );
+
+    const report = dailyReportsMapping[kidName];
+    if (report && getReportStatus(report) === REPORT_STATUS.FULL) {
+      alert(`Daily report for ${kidName} is already fully filled.`);
+      return;
     }
-  };
 
-  /**
-   * Mark or update attendance for a kid.
-   * Clicking a button updates Firestore with the new status.
-   */
-  const markAttendance = async (kidName, status) => {
-    const now = new Date();
-    const dateString = now.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-    const timeHHMM = `${now.getHours().toString().padStart(2, '0')}:${now
-      .getMinutes()
-      .toString()
-      .padStart(2, '0')}`;
-    const updatedRecord = { status, time: timeHHMM, markedAt: dateString };
-
-    // Update local state.
-    setAttendanceData((prev) => ({ ...prev, [kidName]: updatedRecord }));
-
-    try {
-      if (docId) {
-        const attendanceRef = doc(db, 'attendance', docId);
-        await updateDoc(attendanceRef, {
-          [`attendance.${kidName}`]: updatedRecord,
-          date: new Date(),
-        });
-      } else {
-        const newDoc = await addDoc(collection(db, 'attendance'), {
-          date: new Date(),
-          attendance: { [kidName]: updatedRecord },
-        });
-        setDocId(newDoc.id);
-      }
-    } catch (error) {
-      console.error('Error marking attendance:', error);
-      alert('Failed to mark attendance.');
-    }
+    navigate(
+      `/daily-report?child=${encodeURIComponent(kidName)}&themeOfTheDay=${encodeURIComponent(dayThemes.join(', '))}`
+    );
   };
 
   const todayDateString = new Date().toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
-    year: 'numeric',
+    year: 'numeric'
   });
 
-  const progressPercentage =
-    kids.length > 0 ? (markedCount / kids.length) * 100 : 0;
+  const progressPercentage = kids.length > 0 ? (markedCount / kids.length) * 100 : 0;
 
-  // Sort kids: present first, then unmarked, then absent
   const sortedKids = [...kids].sort((a, b) => {
     const statusA = attendanceData[a.name]?.status;
     const statusB = attendanceData[b.name]?.status;
@@ -386,7 +527,6 @@ const Home = () => {
     if (statusA !== 'absent' && statusB === 'absent') return -1;
     return a.name.localeCompare(b.name);
   });
-  
 
   useEffect(() => {
     loadKidsInfo();
@@ -416,7 +556,7 @@ const Home = () => {
               backgroundColor: '#f28c8c',
               color: '#fff',
               cursor: 'pointer',
-              fontWeight: 'bold',
+              fontWeight: 'bold'
             }}
           >
             Log Out
@@ -442,7 +582,6 @@ const Home = () => {
         </p>
       </div>
 
-      {/* Navigation Boxes for Daily Updates, Manage Theme, and Report */}
       <div style={styles.twoBoxesContainer}>
         <div
           style={styles.boxOrange}
@@ -470,36 +609,50 @@ const Home = () => {
 
       <div style={styles.attendanceSection}>
         {sortedKids.map((kid) => {
-          // Determine the styling for the "Present" and "Absent" buttons
           const currentStatus = attendanceData[kid.name]?.status;
+          const reportState = getReportStateForKid(kid.name);
+          const report = dailyReportsMapping[kid.name];
+
           const presentStyle = {
             ...styles.button,
-            backgroundColor:
-              currentStatus === 'present' ? '#90be6d' : '#ccc',
-            color: currentStatus === 'present' ? '#fff' : '#333',
+            backgroundColor: currentStatus === 'present' ? '#90be6d' : '#ccc',
+            color: currentStatus === 'present' ? '#fff' : '#333'
           };
           const absentStyle = {
             ...styles.button,
             backgroundColor: currentStatus === 'absent' ? '#f94144' : '#ccc',
-            color: currentStatus === 'absent' ? '#fff' : '#333',
+            color: currentStatus === 'absent' ? '#fff' : '#333'
           };
 
           return (
             <div key={kid.id} style={styles.kidRow}>
               <div style={styles.rowTop}>
-                <span
-                  style={{
-                    ...styles.kidName,
-                    color:
-                      currentStatus === 'present' ? '#0077b6' : '#555',
-                  }}
-                  onClick={() => handleKidClick(kid.name)}
-                >
-                  {kid.name}
-                  {dailyReportsMapping[kid.name] && (
-                    <span style={styles.tickIcon}>✓</span>
+                <div style={styles.nameCell}>
+                  <span
+                    style={{
+                      ...styles.kidName,
+                      color: currentStatus === 'present' ? '#0077b6' : '#555'
+                    }}
+                    onClick={() => handleKidClick(kid.name)}
+                  >
+                    {kid.name}
+                    {report && getReportStatus(report) === REPORT_STATUS.FULL && (
+                      <span style={styles.tickIcon}>✓</span>
+                    )}
+                  </span>
+                  {reportState && (
+                    <span
+                      style={{
+                        ...styles.reportPill,
+                        backgroundColor: reportState.backgroundColor,
+                        color: reportState.color
+                      }}
+                    >
+                      {reportState.label}
+                    </span>
                   )}
-                </span>
+                </div>
+
                 <div style={styles.buttonGroup}>
                   <button
                     style={presentStyle}
@@ -515,21 +668,22 @@ const Home = () => {
                   </button>
                 </div>
               </div>
+
               {attendanceData[kid.name] && (
                 <div style={{ marginTop: '5px', fontSize: '13px', color: '#444' }}>
                   {`Marked ${attendanceData[kid.name].status.toUpperCase()} at ${new Date(attendanceData[kid.name].markedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
                 </div>
               )}
 
-              {/* Always show button for present kids with a report; label shows time if set */}
               {attendanceData[kid.name]?.status === 'present' &&
-                dailyReportsMapping[kid.name] && (
+                report &&
+                getReportStatus(report) === REPORT_STATUS.FULL && (
                   <div style={{ display: 'flex', justifyContent: 'right' }}>
                     <button
                       style={styles.outButton}
                       onClick={() => handleMarkOutTime(kid.name)}
                     >
-                      {dailyReportsMapping[kid.name].outTime || 'Out Time'}
+                      {report.outTime || 'Out Time'}
                     </button>
                   </div>
                 )}
