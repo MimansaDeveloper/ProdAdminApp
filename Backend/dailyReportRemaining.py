@@ -101,6 +101,10 @@ def fetch_reported_kids_today():
     reported = set()
     for doc in db.collection(DAILY_REPORTS_COLLECTION).stream():
         data = doc.to_dict() or {}
+        status = str(data.get('reportStatus', 'full')).strip().lower()
+        if status != 'full':
+            continue
+
         child = data.get('childName')
         date_field = data.get('date')
         report_date = None

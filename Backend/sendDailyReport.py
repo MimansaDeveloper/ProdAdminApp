@@ -16,6 +16,11 @@ cred = credentials.Certificate(
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
+
+def is_fully_filled_report(report):
+    status = str(report.get("reportStatus", "full")).strip().lower()
+    return status == "full"
+
 def send_email(
     to_emails,
     subject,
@@ -81,7 +86,12 @@ def fetch_daily_reports():
         .where(filter=FieldFilter("date", "<",  end_of_day))
     )
 
-    return [doc.to_dict() for doc in query_ref.stream()]
+    reports = []
+    for doc in query_ref.stream():
+        data = doc.to_dict() or {}
+        if is_fully_filled_report(data):
+            reports.append(data)
+    return reports
 
 def fetch_all_kids_info():
     """
