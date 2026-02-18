@@ -237,7 +237,17 @@ const Home = () => {
     rowTop: {
       display: 'flex',
       justifyContent: 'space-between',
-      alignItems: 'center'
+      alignItems: 'flex-start',
+      flexWrap: 'wrap',
+      rowGap: '6px',
+      columnGap: '12px'
+    },
+    infoColumn: {
+      flex: '1 1 220px',
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      rowGap: '4px'
     },
     nameCell: {
       display: 'flex',
@@ -262,9 +272,23 @@ const Home = () => {
       fontSize: '11px',
       fontWeight: '700'
     },
+    statusText: {
+      fontSize: '13px',
+      color: '#444'
+    },
+    actionColumn: {
+      width: '172px',
+      maxWidth: '100%',
+      marginLeft: 'auto',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      flex: '0 0 auto'
+    },
     buttonGroup: {
       display: 'flex',
-      gap: '8px'
+      gap: '8px',
+      width: '100%'
     },
     button: {
       padding: '6px 10px',
@@ -275,11 +299,12 @@ const Home = () => {
       cursor: 'pointer',
       backgroundColor: '#ccc',
       color: '#333',
-      transition: 'background-color 0.3s ease'
+      transition: 'background-color 0.3s ease',
+      flex: 1
     },
     outButton: {
-      marginTop: '-12px',
-      padding: '6px 46px',
+      width: '100%',
+      padding: '6px 0',
       borderRadius: '4px',
       border: 'none',
       fontSize: '14px',
@@ -485,8 +510,10 @@ const Home = () => {
   }, [autoMarked, kids, attendanceData, markAttendance]);
 
   const handleMarkOutTime = async (kidName) => {
+    const attendance = attendanceData[kidName];
+    if (!attendance || attendance.status !== 'present') return;
+
     const report = dailyReportsMapping[kidName];
-    if (!report || getReportStatus(report) !== REPORT_STATUS.FULL) return;
 
     const now = new Date();
     const formattedTime = now.toLocaleTimeString('en-US', {
@@ -494,15 +521,31 @@ const Home = () => {
       minute: '2-digit',
       hour12: true
     });
+    const updatedAt = new Date();
 
     try {
-      const reportRef = doc(db, 'dailyReports', report.id);
-      await updateDoc(reportRef, { outTime: formattedTime, updatedAt: new Date() });
-
-      setDailyReportsMapping((prev) => ({
+      setAttendanceData((prev) => ({
         ...prev,
-        [kidName]: { ...prev[kidName], outTime: formattedTime, updatedAt: new Date() }
+        [kidName]: { ...prev[kidName], outTime: formattedTime }
       }));
+
+      if (docId) {
+        const attendanceRef = doc(db, 'attendance', docId);
+        await updateDoc(attendanceRef, {
+          [`attendance.${kidName}.outTime`]: formattedTime,
+          date: updatedAt
+        });
+      }
+
+      if (report?.id) {
+        const reportRef = doc(db, 'dailyReports', report.id);
+        await updateDoc(reportRef, { outTime: formattedTime, updatedAt });
+
+        setDailyReportsMapping((prev) => ({
+          ...prev,
+          [kidName]: { ...prev[kidName], outTime: formattedTime, updatedAt }
+        }));
+      }
     } catch (error) {
       console.error('Error marking out time:', error);
       alert('Failed to update out time.');
@@ -649,6 +692,13 @@ const Home = () => {
           const currentStatus = attendanceData[kid.name]?.status;
           const reportState = getReportStateForKid(kid.name);
           const report = dailyReportsMapping[kid.name];
+          const outTimeLabel = report?.outTime || attendanceData[kid.name]?.outTime || 'Out Time';
+          const markedStatus = attendanceData[kid.name]?.status;
+          const markedStatusLabel = markedStatus === 'present'
+            ? 'Present'
+            : markedStatus === 'absent'
+              ? 'Absent'
+              : '';
 
           const presentStyle = {
             ...styles.button,
@@ -664,66 +714,64 @@ const Home = () => {
           return (
             <div key={kid.id} style={styles.kidRow}>
               <div style={styles.rowTop}>
-                <div style={styles.nameCell}>
-                  <span
-                    style={{
-                      ...styles.kidName,
-                      color: currentStatus === 'present' ? '#0077b6' : '#555'
-                    }}
-                    onClick={() => handleKidClick(kid.name)}
-                  >
-                    {kid.name}
-                    {report && getReportStatus(report) === REPORT_STATUS.FULL && (
-                      <span style={styles.tickIcon}>✓</span>
-                    )}
-                  </span>
-                  {reportState && (
+                <div style={styles.infoColumn}>
+                  <div style={styles.nameCell}>
                     <span
                       style={{
-                        ...styles.reportPill,
-                        backgroundColor: reportState.backgroundColor,
-                        color: reportState.color
+                        ...styles.kidName,
+                        color: currentStatus === 'present' ? '#0077b6' : '#555'
                       }}
+                      onClick={() => handleKidClick(kid.name)}
                     >
-                      {reportState.label}
+                      {kid.name}
+                      {report && getReportStatus(report) === REPORT_STATUS.FULL && (
+                        <span style={styles.tickIcon}>✓</span>
+                      )}
                     </span>
+                    {reportState && (
+                      <span
+                        style={{
+                          ...styles.reportPill,
+                          backgroundColor: reportState.backgroundColor,
+                          color: reportState.color
+                        }}
+                      >
+                        {reportState.label}
+                      </span>
+                    )}
+                  </div>
+                  {attendanceData[kid.name] && markedStatusLabel && (
+                    <div style={styles.statusText}>
+                      {`${markedStatusLabel} at ${new Date(attendanceData[kid.name].markedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
+                    </div>
                   )}
                 </div>
 
-                <div style={styles.buttonGroup}>
-                  <button
-                    style={presentStyle}
-                    onClick={() => markAttendance(kid.name, 'present')}
-                  >
-                    Present
-                  </button>
-                  <button
-                    style={absentStyle}
-                    onClick={() => markAttendance(kid.name, 'absent')}
-                  >
-                    Absent
-                  </button>
-                </div>
-              </div>
-
-              {attendanceData[kid.name] && (
-                <div style={{ marginTop: '5px', fontSize: '13px', color: '#444' }}>
-                  {`Marked ${attendanceData[kid.name].status.toUpperCase()} at ${new Date(attendanceData[kid.name].markedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
-                </div>
-              )}
-
-              {attendanceData[kid.name]?.status === 'present' &&
-                report &&
-                getReportStatus(report) === REPORT_STATUS.FULL && (
-                  <div style={{ display: 'flex', justifyContent: 'right' }}>
+                <div style={styles.actionColumn}>
+                  <div style={styles.buttonGroup}>
+                    <button
+                      style={presentStyle}
+                      onClick={() => markAttendance(kid.name, 'present')}
+                    >
+                      Present
+                    </button>
+                    <button
+                      style={absentStyle}
+                      onClick={() => markAttendance(kid.name, 'absent')}
+                    >
+                      Absent
+                    </button>
+                  </div>
+                  {currentStatus === 'present' && (
                     <button
                       style={styles.outButton}
                       onClick={() => handleMarkOutTime(kid.name)}
                     >
-                      {report.outTime || 'Out Time'}
+                      {outTimeLabel}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
+              </div>
             </div>
           );
         })}
