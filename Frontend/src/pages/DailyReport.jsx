@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   collection,
@@ -17,6 +17,10 @@ const REPORT_STATUS = {
   FULL: 'full'
 };
 const THEME_PREVIEW_COUNT = 8;
+
+const normalizeName = (value) => String(value || '').trim().toLowerCase();
+
+const normalizeEmail = (value) => String(value || '').trim();
 
 const getReportStatus = (report) => (
   report?.reportStatus === REPORT_STATUS.PARTIAL
@@ -144,6 +148,48 @@ const DailyReport = () => {
   const [hasAppliedInitialChild, setHasAppliedInitialChild] = useState(!childFromParam);
   const [isSaving, setIsSaving] = useState(false);
   const [isThemeSectionExpanded, setIsThemeSectionExpanded] = useState(false);
+
+  const kidsLookup = useMemo(() => {
+    const lookup = new Map();
+
+    // Primary key: kidsInfo document id.
+    kidsInfo.forEach((kid) => {
+      const idKey = normalizeName(kid?.id);
+      if (idKey) lookup.set(idKey, kid);
+
+      const nameKey = normalizeName(kid?.name);
+      if (nameKey && !lookup.has(nameKey)) lookup.set(nameKey, kid);
+    });
+
+    return lookup;
+  }, [kidsInfo]);
+
+  const getEmailsForChild = useCallback((childName) => {
+    const kid = kidsLookup.get(normalizeName(childName));
+    return {
+      email: normalizeEmail(kid?.email),
+      email2: normalizeEmail(kid?.email2)
+    };
+  }, [kidsLookup]);
+
+  const buildFormDataForChild = useCallback((childName, existingReport) => {
+    const normalizedInTime = convertTimeTo24Hour(presentChildren[childName]?.time || '');
+    const baseData = existingReport
+      ? mapReportToFormData(existingReport, configDefaults)
+      : {
+          ...buildInitialFormData(childName, configDefaults),
+          inTime: normalizedInTime
+        };
+
+    const { email, email2 } = getEmailsForChild(childName);
+    return {
+      ...baseData,
+      childName,
+      inTime: baseData.inTime || normalizedInTime,
+      email: normalizeEmail(baseData.email || email),
+      email2: normalizeEmail(baseData.email2 || email2)
+    };
+  }, [configDefaults, presentChildren, getEmailsForChild]);
 
   const feelingsOptions = [
     { label: 'Happy', emoji: '😊' },
@@ -280,15 +326,14 @@ const DailyReport = () => {
   }, [startOfDay, endOfDay]);
 
   useEffect(() => {
-    if (!formData.childName || !kidsInfo.length) return;
+    if (!formData.childName) return;
 
-    const kid = kidsInfo.find((k) => k.name === formData.childName);
-    const email1 = kid?.email || '';
-    const email2 = kid?.email2 || '';
+    const { email: email1, email2 } = getEmailsForChild(formData.childName);
+    const existingReport = reportDocsByChild[formData.childName] || {};
 
     setFormData((prev) => {
-      const nextEmail = prev.email || email1;
-      const nextEmail2 = prev.email2 || email2;
+      const nextEmail = normalizeEmail(email1 || existingReport.email || prev.email);
+      const nextEmail2 = normalizeEmail(email2 || existingReport.email2 || prev.email2);
 
       if (nextEmail === prev.email && nextEmail2 === prev.email2) return prev;
       return {
@@ -297,7 +342,11 @@ const DailyReport = () => {
         email2: nextEmail2
       };
     });
-  }, [formData.childName, kidsInfo]);
+  }, [
+    formData.childName,
+    getEmailsForChild,
+    reportDocsByChild
+  ]);
 
   useEffect(() => {
     const rec = presentChildren[formData.childName];
@@ -313,15 +362,7 @@ const DailyReport = () => {
     if (hasAppliedInitialChild || !reportsLoaded) return;
 
     const existing = reportDocsByChild[childFromParam];
-    if (existing) {
-      setFormData(mapReportToFormData(existing, configDefaults));
-    } else {
-      const normalizedInTime = convertTimeTo24Hour(presentChildren[childFromParam]?.time || '');
-      setFormData({
-        ...buildInitialFormData(childFromParam, configDefaults),
-        inTime: normalizedInTime
-      });
-    }
+    setFormData(buildFormDataForChild(childFromParam, existing));
 
     setHasAppliedInitialChild(true);
   }, [
@@ -329,8 +370,7 @@ const DailyReport = () => {
     reportsLoaded,
     reportDocsByChild,
     childFromParam,
-    configDefaults,
-    presentChildren
+    buildFormDataForChild
   ]);
 
   const convertTimeTo12Hour = (time24) => {
@@ -344,9 +384,19 @@ const DailyReport = () => {
   const buildReportPayload = (status) => {
     const now = new Date();
     const { themes, ...rest } = formData;
+    const { email: emailFromKid, email2: email2FromKid } = getEmailsForChild(formData.childName);
+    const existingReport = reportDocsByChild[formData.childName] || {};
+    const primaryEmail = String(
+      formData.email || emailFromKid || existingReport.email || ''
+    ).trim();
+    const secondaryEmail = String(
+      formData.email2 || email2FromKid || existingReport.email2 || ''
+    ).trim();
 
     return {
       ...rest,
+      email: primaryEmail,
+      email2: secondaryEmail,
       inTime: convertTimeTo12Hour(formData.inTime),
       outTime: convertTimeTo12Hour(formData.outTime),
       sleepFrom: convertTimeTo12Hour(formData.sleepFrom),
@@ -366,6 +416,10 @@ const DailyReport = () => {
 
     try {
       const reportData = buildReportPayload(status);
+      if (status === REPORT_STATUS.FULL && !reportData.email && !reportData.email2) {
+        alert('No parent email found for this child. Please update kids info first.');
+        return false;
+      }
       const existing = reportDocsByChild[formData.childName];
 
       if (existing) {
@@ -438,15 +492,7 @@ const DailyReport = () => {
       setHasAppliedInitialChild(true);
       setIsThemeSectionExpanded(false);
       const existing = reportDocsByChild[value];
-      if (existing) {
-        setFormData(mapReportToFormData(existing, configDefaults));
-      } else {
-        const normalizedInTime = convertTimeTo24Hour(presentChildren[value]?.time || '');
-        setFormData({
-          ...buildInitialFormData(value, configDefaults),
-          inTime: normalizedInTime
-        });
-      }
+      setFormData(buildFormDataForChild(value, existing));
       return;
     }
 
@@ -552,24 +598,21 @@ const DailyReport = () => {
           onChange={handleChange}
         >
           <option value="" disabled>Select Child</option>
-          {availableChildren.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
+          {availableChildren.map((name) => {
+            return <option key={name} value={name}>{name}</option>;
+          })}
         </select>
 
-        {(formData.email || formData.email2) && (
+        {formData.childName && (
           <>
-            {formData.email && (
-              <>
-                <label style={labelStyle}>Email</label>
-                <input
-                  type="text"
-                  readOnly
-                  value={formData.email}
-                  style={{ ...textStyle, backgroundColor: '#e9ecef' }}
-                />
-              </>
-            )}
+            <label style={labelStyle}>Email</label>
+            <input
+              type="text"
+              readOnly
+              value={formData.email}
+              placeholder="No email found for selected child"
+              style={{ ...textStyle, backgroundColor: '#e9ecef' }}
+            />
             {formData.email2 && (
               <>
                 <label style={labelStyle}>Second Email</label>
